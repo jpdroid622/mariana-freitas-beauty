@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Início - {{ config.SALON_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2 text-center">
+        <h1 class="display-4 mb-4">
+            <i class="fas fa-spa text-primary"></i> {{ config.SALON_NAME }}
+        </h1>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Informações de Contato</h5>
+                <p class="card-text">
+                    <i class="fas fa-map-marker-alt"></i> {{ config.SALON_ADDRESS }}<br>
+                    <i class="fab fa-whatsapp"></i> {{ config.SALON_WHATSAPP }}<br>
+                    <i class="fas fa-clock"></i> {{ config.SALON_HOURS }}
+                </p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-md-6">
+                <a href="{{ url_for('services') }}" class="card h-100 text-decoration-none">
+                    <div class="card-body">
+                        <i class="fas fa-concierge-bell fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">Serviços</h5>
+                        <p class="card-text">Gerencie os serviços oferecidos</p>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="col-md-6">
+                <a href="{{ url_for('products') }}" class="card h-100 text-decoration-none">
+                    <div class="card-body">
+                        <i class="fas fa-shopping-basket fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">Produtos</h5>
+                        <p class="card-text">Controle seu estoque</p>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="col-md-6">
+                <a href="{{ url_for('appointments') }}" class="card h-100 text-decoration-none">
+                    <div class="card-body">
+                        <i class="fas fa-calendar-alt fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">Agendamentos</h5>
+                        <p class="card-text">Gerencie os agendamentos</p>
+                    </div>
+                </a>
+            </div>
+            
+            <div class="col-md-6">
+                <a href="{{ url_for('reports') }}" class="card h-100 text-decoration-none">
+                    <div class="card-body">
+                        <i class="fas fa-chart-line fa-3x text-primary mb-3"></i>
+                        <h5 class="card-title">Relatórios</h5>
+                        <p class="card-text">Visualize relatórios financeiros</p>
+                    </div>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Add hover effect to cards
+    document.querySelectorAll('.card').forEach(card => {
+        card.addEventListener('mouseenter', function() {
+            this.classList.add('shadow-lg');
+        });
+        card.addEventListener('mouseleave', function() {
+            this.classList.remove('shadow-lg');
+        });
+    });
+</script>
+{% endblock %}

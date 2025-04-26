@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios - {{ config.SALON_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Financial Summary -->
+    <div class="col-md-12 mb-4">
+        <div class="row">
+            <div class="col-md-3">
+                <div class="card bg-primary text-white h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="fas fa-money-bill-wave"></i> Receita Total
+                        </h6>
+                        <h3 class="card-text">R$ {{ "%.2f"|format(total_revenue) }}</h3>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card bg-danger text-white h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="fas fa-shopping-cart"></i> Custos Totais
+                        </h6>
+                        <h3 class="card-text">R$ {{ "%.2f"|format(total_cost) }}</h3>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card bg-success text-white h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="fas fa-chart-line"></i> Lucro Total
+                        </h6>
+                        <h3 class="card-text">R$ {{ "%.2f"|format(total_profit) }}</h3>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <div class="card bg-info text-white h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="fas fa-calculator"></i> Lucro Médio/Serviço
+                        </h6>
+                        <h3 class="card-text">R$ {{ "%.2f"|format(avg_profit) }}</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Low Stock Alert -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Produtos com Estoque Baixo
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if low_stock %}
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Estoque Atual</th>
+                                    <th>Nível Mínimo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in low_stock %}
+                                    <tr>
+                                        <td>{{ product.name }}</td>
+                                        <td>{{ "%.2f"|format(product.quantity) }} un</td>
+                                        <td>{{ config.LOW_STOCK_THRESHOLD }} un</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle"></i> Todos os produtos estão com estoque adequado.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Revenue Chart -->
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-bar"></i> Receita vs Custos
+                </h5>
+            </div>
+            <div class="card-body">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Revenue vs Costs Chart
+    const ctx = document.getElementById('revenueChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Receita', 'Custos', 'Lucro'],
+            datasets: [{
+                label: 'Valores (R$)',
+                data: [
+                    {{ total_revenue }},
+                    {{ total_cost }},
+                    {{ total_profit }}
+                ],
+                backgroundColor: [
+                    'rgba(54, 162, 235, 0.5)',
+                    'rgba(255, 99, 132, 0.5)',
+                    'rgba(75, 192, 192, 0.5)'
+                ],
+                borderColor: [
+                    'rgba(54, 162, 235, 1)',
+                    'rgba(255, 99, 132, 1)',
+                    'rgba(75, 192, 192, 1)'
+                ],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: function(value) {
+                            return 'R$ ' + value.toFixed(2);
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return 'R$ ' + context.raw.toFixed(2);
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endblock %} 

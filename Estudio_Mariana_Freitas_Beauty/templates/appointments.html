@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Agendamentos - {{ config.SALON_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-calendar-plus"></i> Novo Agendamento
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="client_name" class="form-label">Nome do Cliente</label>
+                        <input type="text" class="form-control" id="client_name" name="client_name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="client_phone" class="form-label">Telefone/WhatsApp</label>
+                        <input type="tel" class="form-control" id="client_phone" name="client_phone" 
+                               pattern="\+?[1-9][0-9\s\-\(\)]*" required
+                               placeholder="+55 (00) 00000-0000">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="service_name" class="form-label">Serviço</label>
+                        <select class="form-select" id="service_name" name="service_name" required>
+                            <option value="">Selecione um serviço...</option>
+                            {% for service in services %}
+                                <option value="{{ service.name }}" 
+                                        data-duration="{{ service.duration }}"
+                                        data-price="{{ service.price }}">
+                                    {{ service.name }} - {{ service.duration }}min - R$ {{ "%.2f"|format(service.price) }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="date" class="form-label">Data</label>
+                        <input type="date" class="form-control" id="date" name="date" required
+                               min="{{ now.strftime('%Y-%m-%d') }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="time" class="form-label">Horário</label>
+                        <input type="time" class="form-control" id="time" name="time" required
+                               min="08:00" max="20:30">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-calendar-check"></i> Agendar
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-calendar-alt"></i> Agendamentos
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if appointments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Cliente</th>
+                                    <th>Telefone</th>
+                                    <th>Serviço</th>
+                                    <th>Data/Hora</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in appointments %}
+                                    <tr>
+                                        <td>{{ appointment.client_name }}</td>
+                                        <td>{{ appointment.client_phone }}</td>
+                                        <td>{{ appointment.service_name }}</td>
+                                        <td>{{ appointment.datetime.strftime('%d/%m/%Y %H:%M') }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ {
+                                                'scheduled': 'primary',
+                                                'confirmed': 'success',
+                                                'completed': 'info',
+                                                'cancelled': 'danger'
+                                            }[appointment.status] }}">
+                                                {{ {
+                                                    'scheduled': 'Agendado',
+                                                    'confirmed': 'Confirmado',
+                                                    'completed': 'Concluído',
+                                                    'cancelled': 'Cancelado'
+                                                }[appointment.status] }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if appointment.status in ['scheduled', 'confirmed'] %}
+                                                <a href="{{ url_for('execute_service', appointment_id=appointment.id) }}"
+                                                   class="btn btn-sm btn-success"
+                                                   title="Executar Serviço">
+                                                    <i class="fas fa-check"></i>
+                                                </a>
+                                                <button class="btn btn-sm btn-danger cancel-appointment"
+                                                        data-appointment="{{ appointment|tojson }}"
+                                                        title="Cancelar">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Nenhum agendamento encontrado.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Appointment Modal -->
+<div class="modal fade" id="cancelAppointmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Cancelamento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja cancelar o agendamento de <strong id="cancelClientName"></strong>?</p>
+                <p class="text-danger">Esta ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Não</button>
+                <form id="cancelAppointmentForm" method="POST" style="display: inline;">
+                    <input type="hidden" name="_method" value="PATCH">
+                    <input type="hidden" name="status" value="cancelled">
+                    <button type="submit" class="btn btn-danger">Sim, Cancelar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Phone number formatting
+    const phoneInput = document.getElementById('client_phone');
+    phoneInput.addEventListener('input', function(e) {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length <= 11) {
+            if (value.length > 2) {
+                value = `(${value.substring(0,2)}) ${value.substring(2)}`;
+            }
+            if (value.length > 9) {
+                value = `${value.substring(0,9)}-${value.substring(9)}`;
+            }
+        }
+        e.target.value = value;
+    });
+    
+    // Service duration validation
+    document.getElementById('service_name').addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const duration = parseInt(selectedOption.dataset.duration);
+        
+        if (duration) {
+            const timeInput = document.getElementById('time');
+            const maxTime = new Date();
+            maxTime.setHours(20, 30 - duration, 0);
+            timeInput.max = maxTime.toTimeString().substring(0, 5);
+        }
+    });
+    
+    // Cancel Appointment
+    document.querySelectorAll('.cancel-appointment').forEach(button => {
+        button.addEventListener('click', function() {
+            const appointment = JSON.parse(this.dataset.appointment);
+            document.getElementById('cancelClientName').textContent = appointment.client_name;
+            
+            const modal = new bootstrap.Modal(document.getElementById('cancelAppointmentModal'));
+            modal.show();
+        });
+    });
+    
+    // Date validation
+    const dateInput = document.getElementById('date');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    dateInput.min = today.toISOString().split('T')[0];
+    
+    // Time validation
+    const timeInput = document.getElementById('time');
+    timeInput.addEventListener('input', function() {
+        const selectedDate = new Date(dateInput.value);
+        const selectedTime = this.value;
+        
+        if (selectedDate && selectedTime) {
+            const [hours, minutes] = selectedTime.split(':');
+            selectedDate.setHours(parseInt(hours), parseInt(minutes));
+            
+            const now = new Date();
+            if (selectedDate < now) {
+                this.setCustomValidity('O horário selecionado já passou');
+            } else {
+                this.setCustomValidity('');
+            }
+        }
+    });
+</script>
+{% endblock %} 

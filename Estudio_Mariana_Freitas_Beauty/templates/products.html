@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+
+{% block title %}Produtos - {{ config.SALON_NAME }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-plus-circle"></i> Novo Produto
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Nome do Produto</label>
+                        <input type="text" class="form-control" id="name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">Quantidade</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Preço de Venda (R$)</label>
+                        <input type="number" class="form-control" id="price" name="price" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="unit_cost" class="form-label">Custo Unitário (R$)</label>
+                        <input type="number" class="form-control" id="unit_cost" name="unit_cost" step="0.01" min="0" required>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-save"></i> Cadastrar Produto
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        {% if low_stock_products %}
+        <div class="card mt-4">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle"></i> Estoque Baixo
+                </h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush">
+                    {% for product in low_stock_products %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ product.name }}
+                        <span class="badge bg-warning text-dark">{{ "%.2f"|format(product.quantity) }} un</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-list"></i> Produtos Cadastrados
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if products %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Quantidade</th>
+                                    <th>Preço</th>
+                                    <th>Custo</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                    <tr class="{{ 'table-warning' if product.quantity < config.LOW_STOCK_THRESHOLD }}">
+                                        <td>{{ product.name }}</td>
+                                        <td>{{ "%.2f"|format(product.quantity) }} un</td>
+                                        <td>R$ {{ "%.2f"|format(product.price) }}</td>
+                                        <td>R$ {{ "%.2f"|format(product.unit_cost) }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-success add-stock"
+                                                    data-product="{{ product|tojson }}"
+                                                    title="Adicionar Estoque">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-primary edit-product" 
+                                                    data-product="{{ product|tojson }}"
+                                                    title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-sm btn-danger delete-product"
+                                                    data-product-name="{{ product.name }}"
+                                                    title="Excluir">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Nenhum produto cadastrado.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Stock Modal -->
+<div class="modal fade" id="addStockModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Adicionar Estoque</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addStockForm" method="POST">
+                    <input type="hidden" name="_method" value="PATCH">
+                    <div class="mb-3">
+                        <label for="add_quantity" class="form-label">Quantidade a Adicionar</label>
+                        <input type="number" class="form-control" id="add_quantity" name="quantity" step="0.01" min="0" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="addStockForm" class="btn btn-success">Adicionar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Product Modal -->
+<div class="modal fade" id="editProductModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar Produto</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editProductForm" method="POST">
+                    <input type="hidden" name="_method" value="PUT">
+                    <div class="mb-3">
+                        <label for="edit_name" class="form-label">Nome do Produto</label>
+                        <input type="text" class="form-control" id="edit_name" name="name" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_quantity" class="form-label">Quantidade</label>
+                        <input type="number" class="form-control" id="edit_quantity" name="quantity" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_price" class="form-label">Preço de Venda (R$)</label>
+                        <input type="number" class="form-control" id="edit_price" name="price" step="0.01" min="0" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_unit_cost" class="form-label">Custo Unitário (R$)</label>
+                        <input type="number" class="form-control" id="edit_unit_cost" name="unit_cost" step="0.01" min="0" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="editProductForm" class="btn btn-primary">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Product Modal -->
+<div class="modal fade" id="deleteProductModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirmar Exclusão</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Tem certeza que deseja excluir o produto <strong id="deleteProductName"></strong>?</p>
+                <p class="text-danger">Esta ação não pode ser desfeita.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteProductForm" method="POST" style="display: inline;">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" class="btn btn-danger">Confirmar Exclusão</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Add Stock
+    document.querySelectorAll('.add-stock').forEach(button => {
+        button.addEventListener('click', function() {
+            const product = JSON.parse(this.dataset.product);
+            document.getElementById('add_quantity').value = '';
+            
+            const modal = new bootstrap.Modal(document.getElementById('addStockModal'));
+            modal.show();
+        });
+    });
+    
+    // Edit Product
+    document.querySelectorAll('.edit-product').forEach(button => {
+        button.addEventListener('click', function() {
+            const product = JSON.parse(this.dataset.product);
+            document.getElementById('edit_name').value = product.name;
+            document.getElementById('edit_quantity').value = product.quantity;
+            document.getElementById('edit_price').value = product.price;
+            document.getElementById('edit_unit_cost').value = product.unit_cost;
+            
+            const modal = new bootstrap.Modal(document.getElementById('editProductModal'));
+            modal.show();
+        });
+    });
+    
+    // Delete Product
+    document.querySelectorAll('.delete-product').forEach(button => {
+        button.addEventListener('click', function() {
+            const productName = this.dataset.productName;
+            document.getElementById('deleteProductName').textContent = productName;
+            
+            const modal = new bootstrap.Modal(document.getElementById('deleteProductModal'));
+            modal.show();
+        });
+    });
+    
+    // Format number inputs
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('blur', function() {
+            if (this.value) {
+                this.value = parseFloat(this.value).toFixed(2);
+            }
+        });
+    });
+</script>
+{% endblock %} 
